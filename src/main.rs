@@ -13,7 +13,7 @@ use prompt::{puzzle, welcome};
 use sha2::Sha256;
 use std::fs::File;
 use std::io::Cursor;
-use std::ops::{Mul, Neg};
+use std::ops::{Mul, Neg, Div};
 
 use ark_std::{rand::SeedableRng, UniformRand, Zero};
 
@@ -76,13 +76,20 @@ fn main() {
         .for_each(|(i, (pk, proof))| pok_verify(*pk, i, *proof));
 
     let new_key_index = public_keys.len();
-    let message = b"YOUR GITHUB USERNAME";
+    let message = b"10to4";
 
     /* Enter solution here */
 
-    let new_key = G1Affine::zero();
-    let new_proof = G2Affine::zero();
-    let aggregate_signature = G2Affine::zero();
+    let new_key = public_keys
+    .iter()
+    .fold(G1Projective::from(G1Affine::generator()), |acc, (pk, _)| acc - pk)
+    .into_affine();
+    let new_proof = public_keys
+    .iter()
+    .enumerate()
+    .fold(G2Projective::from(derive_point_for_pok(0)), |acc, (i,(_, proof))| acc - proof.mul(Fr::from(1).div(Fr::from(i as u64 + 1))))
+    .into_affine().mul(Fr::from(new_key_index as u64 + 1)).into();
+    let aggregate_signature = bls_sign(Fr::from(1),message);
 
     /* End of solution */
 
